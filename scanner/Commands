@@ -1,0 +1,2 @@
+ ls | xargs sha1sum | cut -f 1 -d ' ' >> ~/whitelist
+

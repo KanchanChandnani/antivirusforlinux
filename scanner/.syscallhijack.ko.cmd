@@ -1,0 +1,1 @@
+cmd_/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/syscallhijack.ko := ld -r -m elf_i386 -T ./scripts/module-common.lds --build-id  -o /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/syscallhijack.ko /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/syscallhijack.o /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/syscallhijack.mod.o

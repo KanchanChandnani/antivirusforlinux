@@ -1,0 +1,26 @@
+# antivirusforlinux
+Signature Based Antivirus for Linux
+Source files
+--------------------------------------------------------
+inputfile - file to be scanned
+whitelist - file containing hashes of legitimate programs [linux utilities like ls]
+signature - file containing Virus definitions
+
+install_module.sh - script to install the match LKM
+userdaemon - user space daemon to display pop up on detecting virus.
+sys_match - LKM which checks whether pattern exists in the target string or not.
+ondemand.c - user space program to run on demand scanning of a file.
+
+
+Usage
+-----------------------------------------------
+Boot into kernel 3.16.0
+cd /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner
+make clean
+make
+sudo sh install_module.sh
+./ondemand /bin/ls signature whitelist Expected output: File skipped from scanning
+./ondemand hw signature whitelist
+
+
+ q

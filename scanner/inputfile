@@ -1,0 +1,1 @@
+In addition to the virus database, you should also support a whitelist of programs that are definitely not malware. This whitelist can be populated with the standard programs and files of a Linux distribution to ensure that your antivirus will never "break" the system. Your whitelist should be based on the SHA-1 hashes of standard linux utilities, e.g.
