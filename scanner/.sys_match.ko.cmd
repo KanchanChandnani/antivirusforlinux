@@ -1,1 +1,0 @@
-cmd_/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/sys_match.ko := ld -r -m elf_i386 -T ./scripts/module-common.lds --build-id  -o /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/sys_match.ko /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/sys_match.o /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/sys_match.mod.o
