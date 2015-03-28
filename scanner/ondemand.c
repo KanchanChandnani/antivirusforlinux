@@ -245,7 +245,8 @@ end:	str[0] = retval + '0';
 
 
 
-	input_file = fopen( "/mnt/tmp/result.txt" , "w+" );
+	input_file = fopen( "/home/utpal/result.txt" , "w+" );
+	system("chmod 666 /home/utpal/result.txt");
 	fwrite(str,1,1,input_file);
 	fclose(input_file);
 	return retval;

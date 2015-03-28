@@ -49,6 +49,11 @@ static int pid_list [100];
 static int last_index = -1;
 
 
+static struct semaphore mr_sem;
+
+
+
+
 struct process_id {
 int size;
 int pid;
@@ -68,7 +73,7 @@ int scanner (char * inputfile) {
 		prev_pid = current->pid;
 	} */
 
-	printk("\nScanner called by \"%s\" (%d)", current->comm, current->pid);
+
 
 	loff_t pos = 0;
 	int result = 0;
@@ -79,18 +84,18 @@ int scanner (char * inputfile) {
 	 "PATH = /sbin :/bin :/usr /bin", NULL};
 	 result = call_usermodehelper_mod (cmdPath, cmdArgv, cmdEnvp, UMH_WAIT_PROC);
 
-//fp = (*original_open)("/tmp/result.txt", O_RDONLY);
-	fp = filp_open("/mnt/tmp/result.txt",O_RDONLY,0777);
+	//fp = (*original_open)("/tmp/result.txt", O_RDONLY);
+	fp = filp_open("/home/utpal/result.txt",O_RDONLY,0);
 	if(IS_ERR(fp))
 	{
-		printk("\n erorr in  result file is %ld" , PTR_ERR(fp));
+		printk("\n Error opening result file is %ld" , PTR_ERR(fp));
 		return 0;
 	}
 	char buf[10];
 	 int ret = vfs_read(fp, buf,1,&pos);
 
 	filp_close(fp,NULL);
-	printk("Result: %s",buf);
+	printk("Result: %c",buf[0]);
 
 
 printk (KERN_DEBUG "\nScanner exec! The result of call_usermodehelper is %d \n", result);
@@ -139,22 +144,36 @@ asmlinkage int new_open(const char *pathname, int flags) {
 	
 	}
 	filp_close(fp,NULL); */
+	
+	//if (down_interruptible(&mr_sem)) {
+		  /* semaphore not acquired; received a signal ... */
 
-	for(i=0; i<last_index; i++){	
-		if(pid_list[i] == current->pid){
+
+		/* critical region (semaphore acquired) ... */
+	
+	for(i=0; i<100; i++){	
+		if(pid_list[i] == current->pid || strcmp(pathname,"/home/utpal/result.txt") == 0){
 			 return (*original_open)(pathname, flags);
 		}
+		if(strcmp(pathname,"/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/whitelist") == 0 || strcmp(pathname,"/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/signature") == 0){
+		return (*original_open)(pathname, flags);
+		}
 	}
+	//	up(&mr_sem);
+	//}
+	
+	
 	unsigned long flags1;
 	if(pathname == NULL){
 		return -ENOENT;
 	}
 
-	printk(KERN_ALERT "\nOpening %s", pathname);
-	int len = strlen("/home/utpal/Documents/NetSec/");
-	if (strncmp("/home/utpal/Documents/NetSec/",pathname,len) == 0) {
+//	printk(KERN_ALERT "\nOpening %s", pathname);
+	int len = strlen("/home/utpal/");
+	if (strncmp("/home/utpal/",pathname,len) == 0) {
 
-		printk(KERN_ALERT "\nScanning the file before opening");
+		printk("\nNew open called by \"%s\" (%d)", current->comm, current->pid);		
+		printk(KERN_ALERT "\nScanning the file %s before opening", pathname);
 		/* struct page *sys_call_page_temp;
 		//printk(KERN_ALERT "\n Disabling interrupts \n");        		
 		disable_page_protection(flags1);
@@ -196,8 +215,9 @@ static int init(void) {
     struct page *sys_call_page_temp;
     unsigned long flags;
 
-
+	
     printk(KERN_ALERT "\nHIJACK INIT\n");
+   sema_init(&mr_sem, 1);      /* usage count is 1 */
    // printk(KERN_ALERT "\n Disabling interrupts \n");    
     disable_page_protection(flags);
     sys_call_page_temp = virt_to_page(&syscall_table);
@@ -208,7 +228,10 @@ static int init(void) {
     syscall_table[__NR_open] = new_open;  
    // printk(KERN_ALERT "\n Enabling interrupts \n");    
     enable_page_protection(flags);
- 
+    int i = 0;
+    for(i = 0; i<100; i++)
+	    pid_list[i] = -1;
+
     return 0;
 }
  
@@ -227,15 +250,22 @@ static void exit(void) {
 }
 int init_scanner(struct subprocess_info *info, struct cred *new){
 
-	printk("\nInit scanner called by \"%s\" %d", current->comm, current->pid);
-	last_index++;
-	pid_list[last_index] = current->pid;
+	printk("\n Userspace scanner is being called by \"%s\" %d", current->comm, current->pid);
+	int i = 0;
+	for(i=0; i<100; i++) {
+		if(pid_list[i] == -1) {
+			pid_list[i] = current->pid;
+			break;
+		}
+
+	}
+	
 	char p[10];
- 
+ 		
 	snprintf(p,10,"%d",current->pid);
 
 
-	struct file * fp = filp_open("/mnt/tmp/plist",O_RDWR,0);
+/*	struct file * fp = filp_open("/home/utpal/tmp/plist", O_RDWR | O_CREAT,0);
 	if(IS_ERR(fp)) {
         	int err = PTR_ERR(fp);
        		 return err;
@@ -243,8 +273,15 @@ int init_scanner(struct subprocess_info *info, struct cred *new){
 		vfs_write(fp,p,sizeof(p),0);
 		vfs_write(fp,":",sizeof(":"),0);
 	}
-	filp_close(fp,NULL);
+	filp_close(fp,NULL); */
 	return 0;	
+
+}
+
+int exit_scanner(struct subprocess_info *info){
+	int pid = pid_list[last_index];	
+	pid_list[last_index] = -1;
+	return pid;
 
 }
  
@@ -254,7 +291,7 @@ int call_usermodehelper_mod(char *path, char **argv, char **envp, int wait){
         gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
 
         info = call_usermodehelper_setup(path, argv, envp, gfp_mask,
-                                         &init_scanner, NULL, NULL);
+                                         &init_scanner, &exit_scanner, NULL);
         if (info == NULL)
                 return -ENOMEM;
 
