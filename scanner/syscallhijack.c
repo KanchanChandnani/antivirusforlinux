@@ -60,7 +60,7 @@ int pid;
 };
 
 
-int scanner (char * inputfile) {
+void  scanner (char * inputfile, char * result1) {
 	
 	static int prev_pid = -1;
 	
@@ -78,12 +78,15 @@ int scanner (char * inputfile) {
 	loff_t pos = 0;
 	int result = 0;
 	struct file *fp;
-	 char cmdPath [] = "/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/ondemand";
-	 char * cmdArgv [] = {inputfile,"/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/signature", "/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/whitelist",NULL};
+	char * res = kmalloc(sizeof(int),GFP_KERNEL); 
+	char cmdPath [] = "/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/ondemand";
+	char * cmdArgv [] = {"dummy",inputfile,"/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/signature", "/home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner/whitelist",NULL};
 	 char * cmdEnvp [] = {"HOME = /home/utpal/Documents/NetSec/proj/antivirusforlinux/scanner",
 	 "PATH = /sbin :/bin :/usr /bin", NULL};
-	 result = call_usermodehelper_mod (cmdPath, cmdArgv, cmdEnvp, UMH_WAIT_PROC);
-
+	
+	printk("Input file %s", inputfile);
+	result = call_usermodehelper_mod (cmdPath, cmdArgv, cmdEnvp, UMH_WAIT_PROC);
+	//printk("******************Result from ondemand scanner %s", res);
 	//fp = (*original_open)("/tmp/result.txt", O_RDONLY);
 	fp = filp_open("/home/utpal/result.txt",O_RDONLY,0);
 	if(IS_ERR(fp))
@@ -91,16 +94,26 @@ int scanner (char * inputfile) {
 		printk("\n Error opening result file is %ld" , PTR_ERR(fp));
 		return 0;
 	}
-	char buf[10];
-	 int ret = vfs_read(fp, buf,1,&pos);
+	char* buf = (char *) kmalloc(10,GFP_KERNEL);
+	
+	mm_segment_t fs;
+	fs = get_fs();
+	set_fs(get_ds());
+	
+	int ret = vfs_read(fp, buf,sizeof(buf),&pos);
+	set_fs(fs);
+//	printk(KERN_ALERT "File ret  = %d", ret);
 
 	filp_close(fp,NULL);
-	printk("Result: %c",buf[0]);
 
 
-printk (KERN_DEBUG "\nScanner exec! The result of call_usermodehelper is %d \n", result);
+	snprintf(result1,"%c",buf[0]);
+	printk(KERN_ALERT "Result from ondemand scanner: %c",buf[0]);
+	kfree(buf);
 
- return result;
+//printk (KERN_DEBUG "\nScanner exec! The result of call_usermodehelper is %d \n", result);
+
+
 }
  
  
@@ -134,6 +147,10 @@ static void enable_page_protection(unsigned long flags) {
 
 asmlinkage int new_open(const char *pathname, int flags) {
 	int i=0;
+	int len = strlen("/home/utpal/output");
+	if (strncmp("/home/utpal/output",pathname,len) == 0) {
+		return (*original_open)(pathname, flags);
+	}
 
 /*	File * fp = filp_open("/mnt/tmp/plist",O_RDONLY,0);
 	if(IS_ERR(fp)) {
@@ -151,7 +168,7 @@ asmlinkage int new_open(const char *pathname, int flags) {
 
 		/* critical region (semaphore acquired) ... */
 	
-	for(i=0; i<100; i++){	
+	/* for(i=0; i<100; i++){	
 		if(pid_list[i] == current->pid || strcmp(pathname,"/home/utpal/result.txt") == 0){
 			 return (*original_open)(pathname, flags);
 		}
@@ -160,17 +177,29 @@ asmlinkage int new_open(const char *pathname, int flags) {
 		}
 	}
 	//	up(&mr_sem);
-	//}
-	
+	//} */
+	char pid[100];
+	sprintf(pid,"%d",current->pid);
+	char * output_file_name = kmalloc(sizeof("/home/utpal/") + sizeof(pid),GFP_KERNEL);
+	strcpy(output_file_name,"/home/utpal/");
+	strcat(output_file_name,pid);
+	int fd = (*original_open)(output_file_name, O_RDONLY);
+
+	if(fd != -1){
+		return (*original_open)(pathname, flags);
+
+	}
 	
 	unsigned long flags1;
 	if(pathname == NULL){
 		return -ENOENT;
 	}
-
+	
+	
+	
 //	printk(KERN_ALERT "\nOpening %s", pathname);
-	int len = strlen("/home/utpal/");
-	if (strncmp("/home/utpal/",pathname,len) == 0) {
+	int len1 = strlen("/home/utpal/");
+	if (strncmp("/home/utpal/",pathname,len1) == 0) {
 
 		printk("\nNew open called by \"%s\" (%d)", current->comm, current->pid);		
 		printk(KERN_ALERT "\nScanning the file %s before opening", pathname);
@@ -182,8 +211,10 @@ asmlinkage int new_open(const char *pathname, int flags) {
     		syscall_table[__NR_open] = original_open;  
 		//printk(KERN_ALERT "\n Enabling interrupts \n");    
 		enable_page_protection(flags1); */ 
-        	scanner(pathname);   
-	
+		char * result = (char *) kmalloc(10,GFP_KERNEL);
+        	scanner(pathname, result); 
+		//printk(KERN_ALERT "reslut1 = %s", result);  
+		kfree(result);
 		/* printk(KERN_ALERT "\n Disabling interrupts \n");    
 	    	disable_page_protection(flags1);
 		    sys_call_page_temp = virt_to_page(&syscall_table);

@@ -117,17 +117,29 @@ int kmp(char *target, int tsize, char *pattern, int psize)
 
 int main(int argc, char *argv[]) {
 
-	char * input_file_name = argv[0];
-	char * signature_file_name = argv[1];
-	char * whitelist_file_name = argv[2];
+	char * input_file_name = argv[1];
+	char * signature_file_name = argv[2];
+	char * whitelist_file_name = argv[3];
 	
 	char * file_contents;
 	unsigned char * hex_file_contents;
+	char pid [10];
 	
 	long input_file_size;
 	int retval = 0;
-	char str[3];
-	FILE *input_file = fopen(input_file_name, "rb");
+
+	pid_t p =getpid();
+	sprintf(pid,"%d",(int) p);
+	char * output_file_name = malloc(sizeof("/home/utpal/output") + sizeof(pid));
+	strcpy(output_file_name,"/home/utpal/output");
+	strcat(output_file_name,pid);
+	printf("O/p file name: %s", output_file_name); 	
+	FILE * input_file = fopen(output_file_name, "w+" );
+	fclose(input_file);
+	
+	
+	//char str[3];
+	input_file = fopen(input_file_name, "rb");
 	if(input_file == NULL){
 		printf("Input File not found\n");
 		return -1;
@@ -212,9 +224,11 @@ int main(int argc, char *argv[]) {
 		struct myargs args;
 		args.target = (char *) hex_file_contents;
 		args.pattern = line_buffer;
-		args.tsize = strlen((const char *) line_buffer);
-		args.psize = strlen((const char *) hex_file_contents);
+		args.psize = strlen((const char *) line_buffer);
+		args.tsize = strlen((const char *) hex_file_contents);
 		
+		//printf("\nargs.target = %s", args.target);
+		//printf("\n\nargs.pattern = %s", args.pattern);
 		void *dummy = (void *)&args;	
 		int i =-1;	
 		//i = syscall(__NR_scanner, dummy, sizeof(args));
@@ -241,14 +255,23 @@ int main(int argc, char *argv[]) {
 	fclose(input_file);	
 
 	
-end:	str[0] = retval + '0'; 
-
-
-
-	input_file = fopen( "/home/utpal/result.txt" , "w+" );
-	system("chmod 666 /home/utpal/result.txt");
-	fwrite(str,1,1,input_file);
+end:	sprintf(pid,"%d",getpid());
+	output_file_name = malloc(sizeof("/home/utpal/") + sizeof(pid));
+	strcpy(output_file_name,"/home/utpal/");
+	strcat(output_file_name,pid);
+	printf("O/p file name: %s", output_file_name); 	
+	input_file = fopen(output_file_name, "w+" );
+	if(input_file == NULL){
+		printf("File doesn't exists");
+	}else{
+	//system("chmod 666 /home/utpal/result.txt");
+	//fprintf(input_file,"File:- %s\n\n", input_file_name);
+	//fprintf(input_file,"FileContents:- %s\n\n", hex_file_contents);
+	//fprintf(input_file,"Patterb:- %s\n", line_buffer);
+	fprintf(input_file,"returnval:- %d\n", retval);
 	fclose(input_file);
+	}
+
 	return retval;
 	
 
